@@ -1,0 +1,94 @@
+{
+  "name": "jekyll-helper",
+  "publisher": "JacobPimental",
+  "displayName": "Jekyll Helper",
+  "description": "",
+  "version": "0.0.1",
+  "engines": {
+    "vscode": "^1.62.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "onCommand:jekyll-helper.paste-image",
+	  "onCommand:jekyll-helper.new-post"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "jekyll-helper.paste-image",
+        "category": "Jekyll Helper",
+        "title": "Paste Image"
+      },
+	  {
+		  "command": "jekyll-helper.new-post",
+		  "category": "Jekyll Helper",
+		  "title": "New Post"
+	  }
+    ],
+    "configuration": {
+      "title": "Jekyll Helper",
+      "properties": {
+        "jekyll-helper.new-post.location": {
+          "type": "string",
+          "default": "_posts/",
+          "description": "Location for new posts in relation to project directory",
+          "pattern": "^[^/].*/$",
+          "patternErrorMessage": "Location must be a valid file path with a closing slash and without a leading slash (i.e my/post/location/)"
+        },
+        "jekyll-helper.new-post.frontmatter": {
+          "type": "string",
+          "editPresentation": "multilineText",
+          "default": "title:\"title\"\ndate:\"date\"\npermalink:\"/blog/post\"",
+          "description": "Frontmatter template to use on posts."
+        },
+        "jekyll-helper.new-post.permalink":{
+          "type": "string",
+          "default": "/post/{slug}",
+          "description": "Permalink to use for posts. Can use keyword `{slug}` for the slugified title"
+        },
+        "jekyll-helper.new-post.prependDate": {
+          "type": "boolean",
+          "default": true,
+          "description": "Will prepend the date to the post file"
+        },
+        "jekyll-helper.paste-image.imageDirectory": {
+          "type":"string",
+          "default": "/assets/images",
+          "description": "Directory to store images. Can use `{slug}` to specify post's slugified title"
+        },
+        "jekyll-helper.paste-image.preserveAspectRatio": {
+          "type":"boolean",
+          "default":true,
+          "description": "Preserve aspect ratio when resizing images"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "pretest": "npm run compile && npm run lint",
+    "lint": "eslint src --ext ts",
+    "test": "node ./out/test/runTest.js"
+  },
+  "devDependencies": {
+    "@types/glob": "^7.1.4",
+    "@types/mocha": "^9.0.0",
+    "@types/node": "14.x",
+    "@types/vscode": "^1.62.0",
+    "@typescript-eslint/eslint-plugin": "^5.1.0",
+    "@typescript-eslint/parser": "^5.1.0",
+    "@vscode/test-electron": "^1.6.2",
+    "eslint": "^8.1.0",
+    "glob": "^7.1.7",
+    "mocha": "^9.1.3",
+    "typescript": "^4.4.4"
+  },
+  "dependencies": {
+    "yaml": "^1.10.2"
+  }
+}
