@@ -1,11 +1,13 @@
 // The module 'vscode' contains the VS Code extensibility API
 // Import the module and reference it with the alias vscode in your code below
 import * as vscode from 'vscode';
-import * as YAML from 'yaml';
-import { execFile } from 'child_process';
+import { execFile, spawn } from 'child_process';
 import { stderr, stdout } from 'process';
 import { join, resolve } from 'path';
 import { rejects } from 'assert';
+
+const YAML = require('js-yaml');
+const PowerShell = require('powershell');
 
 // this method is called when your extension is activated
 // your extension is activated the very first time the command is executed
@@ -40,7 +42,8 @@ async function pasteImage() {
 			break;
 		}
 		case "win32": {
-			vscode.window.showInformationMessage("Windows support not available yet");
+			await pasteImageWindows();
+			break;
 		}
 	}
 }
@@ -104,6 +107,67 @@ async function pasteImageLinux() {
 	editor?.insertSnippet(snippetString);
 }
 
+
+//Pastes Image for Windows
+async function pasteImageWindows() {
+	// Get image title
+	var imageTitle = await vscode.window.showInputBox({'prompt': 'Image Title'});
+	if (imageTitle === undefined){
+		return;
+	}
+
+	// Get Image Size
+	var [status, stdout] = await runPowershellScript(__dirname + '\\..\\scripts\\windows\\get-image-size.ps1');
+	if(status === 1 || stdout === "" || stdout === "x") {			
+		vscode.window.showErrorMessage("Error parsing clipboard. Are you pasting an image?");
+		return;
+	}
+	const imageSize = stdout;
+
+	// Image size selector
+	const imageSizeOptions = getImageSizeOptions(imageSize);
+	var chosenImageSize = await quickPickSelection(imageSizeOptions);
+	const preserveAspectRatio = vscode.workspace.getConfiguration('jekyll-helper.paste-image').get('preserveAspectRatio');
+	if(chosenImageSize === ""){
+		vscode.window.showErrorMessage("Please input Image Size");
+	}
+	if(!preserveAspectRatio){
+		chosenImageSize += '!';
+	}
+
+	// Create image path
+	var imageDirectory = vscode.workspace.getConfiguration('jekyll-helper.paste-image').get('imageDirectory');
+	const wsPath = getActiveWorkspaceFolder();
+	if (wsPath === undefined){
+		vscode.window.showErrorMessage("Must be in an active workspace!");
+		return;
+	}
+
+	const parsedPath = parseImagePath(wsPath.uri.fsPath + '/' + imageDirectory);
+	if(parsedPath === null){
+		vscode.window.showErrorMessage('Something went wrong parsing frontmatter');
+	}
+	const imagePath = parsedPath + '/' + slugify(imageTitle) + '.png';
+	[status, stdout] = await runPowershellScript(__dirname + '\\..\\scripts\\windows\\paste-image.ps1', [imagePath, chosenImageSize]);
+	if(status === 1) {			
+		vscode.window.showErrorMessage("Error parsing clipboard. Are you pasting an image?");
+		return;
+	}
+
+	// Add markdown text
+	const editor = vscode.window.activeTextEditor;
+	if(typeof(imageDirectory) !== "string"){
+		vscode.window.showErrorMessage("We should not get here!!!!");
+		return;
+	}
+	var localPath = parseImagePath(imageDirectory) + '/' + slugify(imageTitle) + '.png';
+	const snippetString = new vscode.SnippetString("![");
+	snippetString.appendPlaceholder("alt");
+	snippetString.appendText(`](${localPath})`);
+	editor?.insertSnippet(snippetString);
+}
+
+
 // QuickPick helper function
 function quickPickSelection(options: any[]){
 	return new Promise<string>((resolve) => {
@@ -143,7 +207,6 @@ function getImageSizeOptions(originalSize: string){
 function runScript(scriptFilePath: string, args: any[] = []): Promise<[any, any]> {
 	return new Promise((resolve) => {
 		var stdout = "";
-		var statusCode;
 		const status = execFile(scriptFilePath, args, (error: any, stdout: any, stderr: any) => {
 			if(error) {
 				console.error(`ERROR: ${error}`);
@@ -163,6 +226,29 @@ function runScript(scriptFilePath: string, args: any[] = []): Promise<[any, any]
 		});
 	});
 }
+
+// Runs powershell script
+function runPowershellScript(scriptFilePath: string, args: any[] = []): Promise<[any, any]> {
+	return new Promise((resolve) => {
+		var stdout = "";
+		const cmd = scriptFilePath + " " + args.join(" ");
+		const ps = new PowerShell(cmd, {"executionpolicy":"Bypass"});
+		ps.on("output", (data: string) => {
+			console.log(data);
+			stdout += data;
+		});
+		ps.on("error", (err: any) => {
+			console.log(err);
+		})
+		ps.on("error-output", (data: string) => {
+			console.log(data);
+		});
+		ps.on("end", (code: any) => {
+			resolve([code, stdout]);
+		});
+	});
+}
+
 
 // Parse Image Directory
 function parseImagePath(imagePath: string){
@@ -190,7 +276,7 @@ function readFrontMatter(){
 		var frontmatterLines = Array();
 		var gotFrontMatter = false;
 		for(var i=1; i<documentLines.length; i++){
-			if(documentLines[i].startsWith('----')){
+			if(documentLines[i].startsWith('---')){
 				gotFrontMatter = true;
 				break;
 			}
@@ -200,7 +286,7 @@ function readFrontMatter(){
 			return null;
 		}
 		var frontmatter = frontmatterLines.join('\n');
-		var yamlData = YAML.parse(frontmatter);
+		var yamlData = YAML.load(frontmatter);
 		return yamlData;
 	}
 	return null;
@@ -251,13 +337,14 @@ async function NewPost() {
 		
 		// Set frontmatter data
 		var frontmatterData = getYAMLData();
+		console.log(frontmatterData);
 		frontmatterData['title'] = title;
 		frontmatterData['permalink'] = permalink;
 		frontmatterData['date'] = date;
 
 		// Create frontmatter text
 		var padding = "---";
-		var frontmatterText = `${padding}\n${YAML.stringify(frontmatterData)}${padding}`;
+		var frontmatterText = `${padding}\n${YAML.dump(frontmatterData)}${padding}`;
 
 		// Insert frontmatter into file
 		wsEdit.insert(filePath, new vscode.Position(0, 0), frontmatterText);
@@ -274,7 +361,9 @@ function parsePermalinkConfig(title: string) {
 // Gets frontmatter data from config
 function getYAMLData() {
 	var frontmatterConfig = vscode.workspace.getConfiguration("jekyll-helper.new-post").get('frontmatter') as string;
-	var yamlData = YAML.parse(frontmatterConfig);
+	console.log(frontmatterConfig);
+	var yamlData = YAML.load(frontmatterConfig);
+	console.log(yamlData);
 	return yamlData;
 }
 

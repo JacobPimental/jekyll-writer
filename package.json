@@ -12,7 +12,7 @@
   ],
   "activationEvents": [
     "onCommand:jekyll-helper.paste-image",
-	  "onCommand:jekyll-helper.new-post"
+    "onCommand:jekyll-helper.new-post"
   ],
   "main": "./out/extension.js",
   "contributes": {
@@ -22,11 +22,11 @@
         "category": "Jekyll Helper",
         "title": "Paste Image"
       },
-	  {
-		  "command": "jekyll-helper.new-post",
-		  "category": "Jekyll Helper",
-		  "title": "New Post"
-	  }
+      {
+        "command": "jekyll-helper.new-post",
+        "category": "Jekyll Helper",
+        "title": "New Post"
+      }
     ],
     "configuration": {
       "title": "Jekyll Helper",
@@ -41,10 +41,10 @@
         "jekyll-helper.new-post.frontmatter": {
           "type": "string",
           "editPresentation": "multilineText",
-          "default": "title:\"title\"\ndate:\"date\"\npermalink:\"/blog/post\"",
+          "default": "title: \"title\"\ndate: \"date\"\npermalink: \"/blog/post\"",
           "description": "Frontmatter template to use on posts."
         },
-        "jekyll-helper.new-post.permalink":{
+        "jekyll-helper.new-post.permalink": {
           "type": "string",
           "default": "/post/{slug}",
           "description": "Permalink to use for posts. Can use keyword `{slug}` for the slugified title"
@@ -55,13 +55,13 @@
           "description": "Will prepend the date to the post file"
         },
         "jekyll-helper.paste-image.imageDirectory": {
-          "type":"string",
-          "default": "/assets/images",
+          "type": "string",
+          "default": "/assets/images/{slug}",
           "description": "Directory to store images. Can use `{slug}` to specify post's slugified title"
         },
         "jekyll-helper.paste-image.preserveAspectRatio": {
-          "type":"boolean",
-          "default":true,
+          "type": "boolean",
+          "default": true,
           "description": "Preserve aspect ratio when resizing images"
         }
       }
@@ -89,6 +89,7 @@
     "typescript": "^4.4.4"
   },
   "dependencies": {
-    "yaml": "^1.10.2"
+    "js-yaml": "^4.1.0",
+    "powershell": "^2.3.2"
   }
 }
